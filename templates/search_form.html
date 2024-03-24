@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Search</title>
+</head>
+<body>
+    {% if session.name %}
+        <h1>Welcome to ShopSmart, {{ session.name }}!</h1>
+        <h1>Search for gadgets</h1>
+        <a href="/logout">Logout</a>
+        <form method="POST">
+            <label for="keyword">Enter a keyword to search:</label>
+            <input type="text" id="keyword" name="keyword">
+            <button type="submit">Search</button>
+        </form>
+    {% else %}
+        <h1>Login</h1>
+        <p>You must login to search for products</p>
+        <form method="POST">
+            <label for="keyword">Enter Your name to login:</label>
+            <input type="text" id="name" name="name" placeholder="e.g John Doe">
+            <button type="submit">Login</button>
+        </form>
+    {% endif %}
+</body>
+</html>
