@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Search</title>
+</head>
+<body>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <h1>Welcome to Electronic ShopSmart!</h1>
+    {% if session.name %}
+        <h2>Hello, {{ session.name }}!</h2>
+        <h3>Search for gadgets</h3>
+        <a href="/logout">Logout</a>
+        <form method="POST">
+            <label for="keyword">Enter a keyword to search:</label>
+            <input type="text" id="keyword" name="keyword">
+            <button type="submit">Search</button>
+        </form>
+    {% else %}
+        <h2>Login</h2>
+        <p>You must login to search for products</p>
+        <div id="g_id_onload"
+            data-client_id="4851630959-fhot2gumds6i4vct1a1gs9gpiii4jsh4.apps.googleusercontent.com"
+            data-auto_prompt="false"
+            data-callback="handleCredentialResponse"
+            >
+        </div>
+        <div class="g_id_signin"
+            data-type="standard"
+            data-size="medium"
+            data-theme="outline"
+            data-text="sign_in_with"
+            data-shape="rectangular"
+            data-width="300"
+            data-logo_alignment="left">
+        </div>
+    {% endif %}
+</body>
+<script type="text/javascript">
+    function handleCredentialResponse(response) {
+        window.location.href = `/?auth_token=${response?.credential}`
+    }
+</script>
+</html>
