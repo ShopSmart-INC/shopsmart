@@ -18,10 +18,12 @@
             </div>
         </li>
     {% else %}
-        <p>No Results Found</p>
+        <h3>No Results Found!</h3>
     {% endfor %}
     <hr>
-    <h4>Previously searched</h4>
+    <hr>
+    <hr>
+    <h2>Previously searched</h4>
     <ul>
     {% for item in session.previous_search_results %}
         <li>

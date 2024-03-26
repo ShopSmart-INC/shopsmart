@@ -11,16 +11,17 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
-def fetch_items(keyword):
+
+def fetch_site_1_items(keyword):
     url = "https://swiftronics.ca/search?type=product&q=" + keyword
 
     items = []
 
     response = requests.get(url).text
-    soup = BeautifulSoup(response, 'html.parser')
-    
+    soup = BeautifulSoup(response, "html.parser")
+
     # Find all product containers
-    product_containers = soup.find_all('div', class_="inner product-item")
+    product_containers = soup.find_all("div", class_="inner product-item")
     for container in product_containers:
         try:
             # Extract item name and price
@@ -31,49 +32,105 @@ def fetch_items(keyword):
 
             product_info_container = container.find("div", class_="product-bottom")
             name = product_info_container.find("a").find("span").text.strip()
-            price = product_info_container.find("div", class_="price-regular").find("span").text.strip()
-            price = re.findall(r'(?:[$]{1}[,\d]+.?\d*)', price)[0][1:]
+            price = (
+                product_info_container.find("div", class_="price-regular")
+                .find("span")
+                .text.strip()
+            )
+            price = re.findall(r"(?:[$]{1}[,\d]+.?\d*)", price)[0][1:]
             # Append item details to the list
-            items.append({'name': name, 'price': price, "link": f"https://swiftronics.ca{link}", "image": image})
+            items.append(
+                {
+                    "name": name,
+                    "price": price.replace("$", "").replace(",", ""),
+                    "link": f"https://swiftronics.ca{link}",
+                    "image": image,
+                }
+            )
         except Exception as e:
             print(e)
             # Skip if any attribute error occurs
             pass
+    return items
+
+
+def fetch_site_2_items(keyword):
+    url = "https://www.newegg.ca/p/pl?d=" + keyword
+
+    items = []
+
+    response = requests.get(url).text
+    soup = BeautifulSoup(response, "html.parser")
+
+    # Find all product containers
+    product_containers = soup.find_all("div", class_="item-container")
+    for container in product_containers:
+        try:
+            # Extract item name and price
+            link = container.find("a")["href"]
+            image = container.find("img")["src"]
+
+            name = container.find("a", class_="item-title").text.strip()
+            price = (
+                container.find("li", class_="price-current").find("strong").text.strip()
+            )
+            price = price.replace(",", "")
+            # Append item details to the list
+            items.append({"name": name, "price": price, "link": link, "image": image})
+        except Exception as e:
+            # Skip if any attribute error occurs
+            pass
 
     # Sort items by price (ascending)
-    sorted_items = sorted(items, key=lambda x: float(x['price'].replace('$', '').replace(',', '')))
+    sorted_items = sorted(items, key=lambda x: float(x["price"]))
+    return items
+
+
+def fetch_items(keyword):
+    items_from_site_1 = fetch_site_1_items(keyword)
+    items_from_site_2 = fetch_site_2_items(keyword)
+    items = items_from_site_1 + items_from_site_2
+
+    # Sort items by price (ascending)
+    sorted_items = sorted(items, key=lambda x: float(x["price"]))
     return sorted_items
 
-@app.route('/', methods=['GET', 'POST'])
+
+@app.route("/", methods=["GET", "POST"])
 def index():
-    token = request.args.get('auth_token')
+    token = request.args.get("auth_token")
     if token:
         # User is logging in
         idinfo = id_token.verify_oauth2_token(token, google_requests.Request())
         session["name"] = idinfo["name"]
         return redirect("/")
-    elif request.method == 'POST':
-        keyword = request.form.get('keyword')        
+    elif request.method == "POST":
+        keyword = request.form.get("keyword")
         # User is searching for products
         items = fetch_items(keyword)
         # print(items)
-        session["previous_search_results"] = session.get("current_search_results", [])[:3] # To show at most 3 of former search results
+        session["previous_search_results"] = session.get("current_search_results", [])[
+            :3
+        ]  # To show at most 3 of former search results
         session["current_search_results"] = items
-        return redirect('/results')
-    return render_template('search_form.html')
+        return redirect("/results")
+    return render_template("search_form.html")
 
-@app.route('/results', methods=['GET'])
+
+@app.route("/results", methods=["GET"])
 def results():
     # For displaying results
     if session.get("name") == None:
         # Only logged in users can see search results. So if you're not logged in, you're redirected home
         return redirect("/")
-    return render_template('search_results.html')
+    return render_template("search_results.html")
 
-@app.route('/logout', methods=['GET'])
+
+@app.route("/logout", methods=["GET"])
 def logout():
     session["name"] = None
-    return redirect('/')
+    return redirect("/")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     app.run(debug=True)
