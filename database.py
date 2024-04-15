@@ -1,7 +1,8 @@
-from decimal import Decimal
+import requests
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from datetime import datetime
+import boto3, base64
 
 
 class Base(DeclarativeBase):
@@ -11,19 +12,10 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    email = db.Column(db.String, unique=True)
-    password = db.Column(db.String)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
-
-
 class Search(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"))
-    search_filter = db.Column(db.String)
+    user_email = db.Column(db.String)
+    search_keyword = db.Column(db.String)
     name = db.Column(db.String)
     price = db.Column(db.Numeric(precision=10, scale=2), nullable=False)
     link = db.Column(db.String)
@@ -33,23 +25,42 @@ class Search(db.Model):
     previously_searched = db.Column(db.Boolean, default=False)
 
 
-def get_or_create_user(idinfo):
-    email = idinfo["email"]
-    # Check if user already exists in database
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        # Create user if it doesn't exist
-        user = User(name=idinfo["name"], email=email, password="defaultpassword")
-        db.session.add(user)
-        db.session.commit()
-    return user
+def generate_access_token(code):
+    token_url = "https://shopsmart.auth.eu-north-1.amazoncognito.com/oauth2/token"
+    message = bytes(
+        f"7v0mgimfcvhgvh3ib16j5toad9:d49rk8pv0s5d77omoor10ftohtitlfl43rs4didf4d1niakeisf",
+        "utf-8",
+    )
+    secret_hash = base64.b64encode(message).decode()
+    payload = {
+        "grant_type": "authorization_code",
+        "client_id": "7v0mgimfcvhgvh3ib16j5toad9",
+        "code": code,
+        "redirect_uri": "http://localhost:5000",
+    }
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Authorization": f"Basic {secret_hash}",
+    }
+    resp = requests.post(token_url, params=payload, headers=headers)
+    data = resp.json()
+    return data.get("access_token")
 
 
-def create_latest_searches(items, user_id, search_filter):
+def get_user_via_access_token(token):
+    client = boto3.client("cognito-idp", region_name="eu-north-1")
+    response = client.get_user(AccessToken=token)
+    data = response["UserAttributes"]
+    email = data[0]["Value"]
+    name = data[2]["Value"]
+    return name, email
+
+
+def create_latest_searches(items, user_email, search_filter):
     for i in items:
         search_item = Search(
-            user_id=user_id,
-            search_filter=search_filter,
+            user_email=user_email,
+            search_keyword=search_filter,
             name=i["name"],
             price=i["price"],
             link=i["link"],

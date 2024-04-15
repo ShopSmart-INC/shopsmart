@@ -52,3 +52,5 @@ w3lib==2.1.2
 websockets==10.4
 Werkzeug==3.0.1
 zipp==3.18.1
+
+https://shopsmart.auth.eu-north-1.amazoncognito.com/login?response_type=code&client_id=2fd1parn4kbv34o7dfh13j2sri&redirect_uri=http://localhost:5000

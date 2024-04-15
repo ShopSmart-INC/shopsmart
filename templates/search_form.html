@@ -4,12 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Product Search</title>
+    <style>
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            text-decoration: none;
+            background-color: #4CAF50;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    </style>
 </head>
 <body>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <h1>Welcome to Electronic ShopSmart!</h1>
-    {% if session.name %}
-        <h2>Hello, {{ session.name }}!</h2>
+    {% if session.access_token %}
+        <h2>Hello, {{ name }}!</h2>
         <h3>Search for gadgets</h3>
         <a href="/logout">Logout</a>
         <form method="POST">
@@ -20,26 +36,7 @@
     {% else %}
         <h2>Login</h2>
         <p>You must login to search for products</p>
-        <div id="g_id_onload"
-            data-client_id="4851630959-fhot2gumds6i4vct1a1gs9gpiii4jsh4.apps.googleusercontent.com"
-            data-auto_prompt="false"
-            data-callback="handleCredentialResponse"
-            >
-        </div>
-        <div class="g_id_signin"
-            data-type="standard"
-            data-size="medium"
-            data-theme="outline"
-            data-text="sign_in_with"
-            data-shape="rectangular"
-            data-width="300"
-            data-logo_alignment="left">
-        </div>
+        <a href="https://shopsmart.auth.eu-north-1.amazoncognito.com/login?response_type=code&client_id=7v0mgimfcvhgvh3ib16j5toad9&redirect_uri=http://localhost:5000" class="button">Sign In Via AWS Cognito</a>
     {% endif %}
 </body>
-<script type="text/javascript">
-    function handleCredentialResponse(response) {
-        window.location.href = `/?auth_token=${response?.credential}`
-    }
-</script>
 </html>

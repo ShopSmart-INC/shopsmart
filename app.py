@@ -7,14 +7,17 @@ from flask import (
     session,
 )  # Import necessary modules from Flask
 from flask_session import Session  # Import Session module from Flask Session extension
-from google.auth.transport import (
-    requests as google_requests,
-)  # Import necessary modules from Google Auth
-from google.oauth2 import id_token  # Import id_token module from Google OAuth2
 import requests  # Import requests module for making HTTP requests
 from bs4 import BeautifulSoup  # Import BeautifulSoup module for web scraping
-from .database import db, create_latest_searches, Search, get_or_create_user
+from .database import (
+    db,
+    create_latest_searches,
+    Search,
+    generate_access_token,
+    get_user_via_access_token,
+)
 import sqlalchemy
+from flask_migrate import Migrate
 
 app = Flask(__name__)  # Create Flask application instance
 app.config["SESSION_PERMANENT"] = False  # Configure session to be non-permanent
@@ -32,6 +35,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = sqlalchemy.engine.url.URL.create(
 )
 # initialize the app with the extension
 db.init_app(app)
+migrate = Migrate(app, db)
 
 # Create all tables
 with app.app_context():
@@ -157,29 +161,34 @@ def index():
         render_template: Rendered template for the home page.
         redirect: Redirects to other routes based on conditions.
     """
-    token = request.args.get("auth_token")  # Get authentication token from request
-    if token:
+    code = request.args.get("code")  # Get authentication token from request
+    if code:
         # User is logging in
-        idinfo = id_token.verify_oauth2_token(token, google_requests.Request())
         # Get or create user and add the details to session
-        user = get_or_create_user(idinfo)
-        session["name"] = user.name
-        session["user_id"] = user.id
+        access_token = generate_access_token(code)
+        session["access_token"] = access_token
         return redirect("/")  # Redirect to home page after login
     elif request.method == "POST":
-        user_id = session.get("user_id")
+        name, email = get_user_via_access_token(session.get("access_token"))
         keyword = request.form.get("keyword")  # Get keyword from search form
         # User is searching for products
         items = fetch_items(keyword)  # Fetch items based on the keyword
         # Update all current user search to previously_searched before creating new searches
-        Search.query.filter_by(user_id=session.get("user_id")).update(
-            {"previously_searched": True}
-        )
+        Search.query.filter_by(user_email=email).update({"previously_searched": True})
 
         # Create new searches
-        create_latest_searches(items, user_id, keyword)
+        create_latest_searches(items, email, keyword)
         return redirect("/results")  # Redirect to results page
-    return render_template("search_form.html")  # Render search form template
+
+    # Validate request (retrieve user details from token)
+    name = None
+    email = None
+    token = session.get("access_token")
+    if token:
+        name, email = get_user_via_access_token(token)
+    return render_template(
+        "search_form.html", name=name, email=email
+    )  # Render search form template
 
 
 @app.route("/results", methods=["GET"])
@@ -191,18 +200,24 @@ def results():
         render_template: Rendered template for displaying search results.
         redirect: Redirects to home page if user is not logged in.
     """
-    user_id = session.get("user_id")
-    if user_id == None:
+
+    # Authorize user
+    access_token = session.get("access_token")
+    if access_token == None:
         # Only logged in users can see search results. So if you're not logged in, you're redirected home
         return redirect("/")
+    name, email = get_user_via_access_token(access_token)
+    # Attach user details to session
+
     currently_searched_items = Search.query.filter_by(
-        user_id=user_id, previously_searched=False
+        user_email=email, previously_searched=False
     ).all()
     previously_searched_items = Search.query.filter_by(
-        user_id=user_id, previously_searched=True
+        user_email=email, previously_searched=True
     ).order_by(Search.created_at)[:3]
     return render_template(
         "search_results.html",
+        name=name,
         currently_searched_items=currently_searched_items,
         previously_searched_items=previously_searched_items,
     )  # Render search results template
@@ -218,7 +233,7 @@ def logout():
     """
     # Clear user's session data
     session["name"] = None
-    session["user_id"] = None
+    session["access_token"] = None
     return redirect("/")  # Redirect to home page after logout
 
 
