@@ -18,6 +18,7 @@ from .database import (
 )
 import sqlalchemy
 from flask_migrate import Migrate
+from decouple import config
 
 app = Flask(__name__)  # Create Flask application instance
 app.config["SESSION_PERMANENT"] = False  # Configure session to be non-permanent
@@ -27,11 +28,11 @@ Session(app)  # Initialize Flask Session extension with the app instance
 # Configure the Postgresql database
 app.config["SQLALCHEMY_DATABASE_URI"] = sqlalchemy.engine.url.URL.create(
     drivername="postgresql+psycopg2",
-    username="postgres",
-    password="shopsmart_db_password",
-    host="shopsmart-db.cp0sou4uaccg.eu-north-1.rds.amazonaws.com",
-    port=5432,
-    database="postgres",
+    username=config("POSTGRES_USERNAME"),
+    password=config("POSTGRES_PASSWORD"),
+    host=config("POSTGRES_HOST"),
+    port=config("POSTGRES_PORT"),
+    database=config("POSTGRES_DB"),
 )
 # initialize the app with the extension
 db.init_app(app)
@@ -187,7 +188,12 @@ def index():
     if token:
         name, email = get_user_via_access_token(token)
     return render_template(
-        "search_form.html", name=name, email=email
+        "search_form.html",
+        name=name,
+        email=email,
+        auth_url=config("COGNITO_AUTH_URL"),
+        client_id=config("COGNITO_CLIENT_ID"),
+        redirect_uri=config("ORIGIN"),
     )  # Render search form template
 
 

@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from datetime import datetime
 import boto3, base64
+from decouple import config
 
 
 class Base(DeclarativeBase):
@@ -26,9 +27,9 @@ class Search(db.Model):
 
 
 def generate_access_token(code):
-    token_url = "https://shopsmart.auth.eu-north-1.amazoncognito.com/oauth2/token"
+    token_url = f"{config('COGNITO_AUTH_URL')}/oauth2/token"
     message = bytes(
-        f"7v0mgimfcvhgvh3ib16j5toad9:d49rk8pv0s5d77omoor10ftohtitlfl43rs4didf4d1niakeisf",
+        f"{config('COGNITO_CLIENT_ID')}:{config('COGNITO_SECRET')}",
         "utf-8",
     )
     secret_hash = base64.b64encode(message).decode()
@@ -36,7 +37,7 @@ def generate_access_token(code):
         "grant_type": "authorization_code",
         "client_id": "7v0mgimfcvhgvh3ib16j5toad9",
         "code": code,
-        "redirect_uri": "http://localhost:5000",
+        "redirect_uri": config("ORIGIN"),
     }
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",

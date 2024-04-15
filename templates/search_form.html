@@ -35,7 +35,7 @@
     {% else %}
         <h2>Login</h2>
         <p>You must login to search for products</p>
-        <a href="https://shopsmart.auth.eu-north-1.amazoncognito.com/login?response_type=code&client_id=7v0mgimfcvhgvh3ib16j5toad9&redirect_uri=http://localhost:5000" class="button">Sign In Via AWS Cognito</a>
+        <a href="{{auth_url}}/login?response_type=code&client_id={{ client_id }}&redirect_uri={{ redirect_uri }}" class="button">Sign In Via AWS Cognito</a>
     {% endif %}
 </body>
 </html>
