@@ -9,7 +9,7 @@
     <h1>Search Results</h1>
     <a href="/">Go Back</a>
     <ul>
-    {% for item in session.current_search_results %}
+    {% for item in currently_searched_items %}
         <li>
             <img src="{{ item.image }}"/>
             <div>
@@ -25,7 +25,7 @@
     <hr>
     <h2>Previously searched</h4>
     <ul>
-    {% for item in session.previous_search_results %}
+    {% for item in previously_searched_items %}
         <li>
             <img src="{{ item.image }}"/>
             <div>
