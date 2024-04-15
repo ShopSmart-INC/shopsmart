@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <title>ShopSmart | Register</title>
+</head>
+<body>
+    <h1>Welcome to Electronic ShopSmart!</h1>
+    <h2>Register</h2>
+    <form method="POST">
+        <input type="text" name="name" placeholder="Name"/>
+        <input type="email" name="email" placeholder="Email"/>
+        <input type="password" name="password" placeholder="Password"/>
+        <button type="submit">Submit</button>
+    </form>
+    {% if error %}
+        <p>{{error}}</p>
+    {% endif %}
+    <br>
+    <a href="/">Login Here</a>
+</body>
+</html>

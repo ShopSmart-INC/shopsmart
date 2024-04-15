@@ -13,7 +13,7 @@ from google.auth.transport import (
 from google.oauth2 import id_token  # Import id_token module from Google OAuth2
 import requests  # Import requests module for making HTTP requests
 from bs4 import BeautifulSoup  # Import BeautifulSoup module for web scraping
-from .database import db, create_latest_searches, Search, get_or_create_user
+from database.database import User, db, create_latest_searches, Search, get_user
 import sqlalchemy
 
 app = Flask(__name__)  # Create Flask application instance
@@ -157,29 +157,59 @@ def index():
         render_template: Rendered template for the home page.
         redirect: Redirects to other routes based on conditions.
     """
-    token = request.args.get("auth_token")  # Get authentication token from request
-    if token:
-        # User is logging in
-        idinfo = id_token.verify_oauth2_token(token, google_requests.Request())
-        # Get or create user and add the details to session
-        user = get_or_create_user(idinfo)
-        session["name"] = user.name
-        session["user_id"] = user.id
-        return redirect("/")  # Redirect to home page after login
-    elif request.method == "POST":
-        user_id = session.get("user_id")
+    if request.method == "POST":
         keyword = request.form.get("keyword")  # Get keyword from search form
-        # User is searching for products
-        items = fetch_items(keyword)  # Fetch items based on the keyword
-        # Update all current user search to previously_searched before creating new searches
-        Search.query.filter_by(user_id=session.get("user_id")).update(
-            {"previously_searched": True}
-        )
+        if keyword:
+            user_id = session.get("user_id")
+            keyword = request.form.get("keyword")  # Get keyword from search form
+            # User is searching for products
+            items = fetch_items(keyword)  # Fetch items based on the keyword
+            # Update all current user search to previously_searched before creating new searches
+            Search.query.filter_by(user_id=session.get("user_id")).update(
+                {"previously_searched": True}
+            )
 
+            # Create new searches
+            create_latest_searches(items, user_id, keyword)
+            return redirect("/results")  # Redirect to results page
+        else:
+            email = request.form.get("email")
+            password = request.form.get("password")
+            user = User.query.filter_by(email=email, password=password).first()
+            if not user:
+                return render_template("search_form.html", error="Invalid email or password")
+            session["user_id"] = user.id
+            return redirect("/")  # Redirect to home page after login
+    user_id = session.get("user_id")
+    name = None
+    if user_id:
+        user = get_user(user_id)
+        name = user.name
+    return render_template("search_form.html", name=name)  # Render search form template
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    """
+    Route for the home page.
+
+    Returns:
+        render_template: Rendered template for the home page.
+        redirect: Redirects to other routes based on conditions.
+    """
+    if request.method == "POST":
+        name = request.form.get("name")
+        email = request.form.get("email")
+        password = request.form.get("password")
+        user = User.query.filter_by(email=email).first()
+        if user:
+            return render_template("register.html", error="Email already used")  # Render search form template
+        
+        user = User(name=name, email=email, password=password)
+        db.session.add(user)
+        db.session.commit()
         # Create new searches
-        create_latest_searches(items, user_id, keyword)
-        return redirect("/results")  # Redirect to results page
-    return render_template("search_form.html")  # Render search form template
+        return redirect("/")  # Redirect to home page
+    return render_template("register.html")  # Render search form template
 
 
 @app.route("/results", methods=["GET"])
@@ -195,14 +225,16 @@ def results():
     if user_id == None:
         # Only logged in users can see search results. So if you're not logged in, you're redirected home
         return redirect("/")
+    user = get_user(user_id)
     currently_searched_items = Search.query.filter_by(
         user_id=user_id, previously_searched=False
     ).all()
     previously_searched_items = Search.query.filter_by(
         user_id=user_id, previously_searched=True
-    ).order_by(Search.created_at)[:3]
+    ).order_by(Search.created_at.desc())[:3]
     return render_template(
         "search_results.html",
+        name=user.name,
         currently_searched_items=currently_searched_items,
         previously_searched_items=previously_searched_items,
     )  # Render search results template
@@ -217,7 +249,6 @@ def logout():
         redirect: Redirects to home page after logout.
     """
     # Clear user's session data
-    session["name"] = None
     session["user_id"] = None
     return redirect("/")  # Redirect to home page after logout
 

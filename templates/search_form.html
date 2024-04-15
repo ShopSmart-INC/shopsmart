@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Search</title>
+    <title>ShopSmart</title>
 </head>
 <body>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <h1>Welcome to Electronic ShopSmart!</h1>
-    {% if session.name %}
-        <h2>Hello, {{ session.name }}!</h2>
+    {% if session.user_id %}
+        <h2>Hello, {{ name }}!</h2>
         <h3>Search for gadgets</h3>
         <a href="/logout">Logout</a>
         <form method="POST">
@@ -20,26 +19,17 @@
     {% else %}
         <h2>Login</h2>
         <p>You must login to search for products</p>
-        <div id="g_id_onload"
-            data-client_id="4851630959-fhot2gumds6i4vct1a1gs9gpiii4jsh4.apps.googleusercontent.com"
-            data-auto_prompt="false"
-            data-callback="handleCredentialResponse"
-            >
-        </div>
-        <div class="g_id_signin"
-            data-type="standard"
-            data-size="medium"
-            data-theme="outline"
-            data-text="sign_in_with"
-            data-shape="rectangular"
-            data-width="300"
-            data-logo_alignment="left">
-        </div>
+        <form method="POST">
+            <input type="email" placeholder="Email" name="email">
+            <input type="password" placeholder="Password" name="password">
+            <button type="submit">Submit</button>
+        </form>
+        {% if error %}
+            <p>{{error}}</p>
+        {% endif %}
+        <br>
+        <a href="/register">Register Here</a>
+
     {% endif %}
 </body>
-<script type="text/javascript">
-    function handleCredentialResponse(response) {
-        window.location.href = `/?auth_token=${response?.credential}`
-    }
-</script>
 </html>

@@ -33,15 +33,9 @@ class Search(db.Model):
     previously_searched = db.Column(db.Boolean, default=False)
 
 
-def get_or_create_user(idinfo):
-    email = idinfo["email"]
+def get_user(id):
     # Check if user already exists in database
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        # Create user if it doesn't exist
-        user = User(name=idinfo["name"], email=email, password="defaultpassword")
-        db.session.add(user)
-        db.session.commit()
+    user = User.query.filter_by(id=id).first()
     return user
 
 
