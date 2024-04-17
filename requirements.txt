@@ -1,7 +1,10 @@
+alembic==1.13.1
 appdirs==1.4.4
 asgiref==3.8.0
 beautifulsoup4==4.12.3
 blinker==1.7.0
+boto3==1.34.84
+botocore==1.34.84
 bs4==0.0.2
 cachelib==0.12.0
 cachetools==5.3.3
@@ -11,6 +14,7 @@ click==8.1.7
 cssselect==1.2.0
 fake-useragent==1.5.1
 Flask==3.0.2
+Flask-Migrate==4.0.7
 Flask-Session==0.7.0
 Flask-SQLAlchemy==3.1.1
 google-api-core==2.18.0
@@ -25,7 +29,9 @@ idna==3.6
 importlib_metadata==7.1.0
 itsdangerous==2.1.2
 Jinja2==3.1.3
+jmespath==1.0.1
 lxml==5.1.0
+Mako==1.3.3
 MarkupSafe==2.1.5
 msgspec==0.18.6
 packaging==24.0
@@ -39,9 +45,13 @@ pyee==11.1.0
 pyparsing==3.1.2
 pyppeteer==2.0.0
 pyquery==2.0.0
+python-dateutil==2.9.0.post0
+python-decouple==3.8
 requests==2.31.0
 requests-html==0.10.0
 rsa==4.9
+s3transfer==0.10.1
+six==1.16.0
 soupsieve==2.5
 SQLAlchemy==2.0.29
 tqdm==4.66.2
