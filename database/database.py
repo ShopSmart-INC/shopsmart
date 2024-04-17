@@ -92,3 +92,4 @@ def create_latest_searches(items, email, search_filter):
         db.session.add(search_item)
     # Commit to database
     db.session.commit()
+    #com
