@@ -9,7 +9,7 @@ from flask import (
 from flask_session import Session  # Import Session module from Flask Session extension
 import requests  # Import requests module for making HTTP requests
 from bs4 import BeautifulSoup  # Import BeautifulSoup module for web scraping
-from .database import (
+from database.database import (
     db,
     create_latest_searches,
     Search,
