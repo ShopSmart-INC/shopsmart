@@ -7,31 +7,44 @@ from flask import (
     session,
 )  # Import necessary modules from Flask
 from flask_session import Session  # Import Session module from Flask Session extension
-from google.auth.transport import (
-    requests as google_requests,
-)  # Import necessary modules from Google Auth
-from google.oauth2 import id_token  # Import id_token module from Google OAuth2
 import requests  # Import requests module for making HTTP requests
 from bs4 import BeautifulSoup  # Import BeautifulSoup module for web scraping
-from database.database import User, db, create_latest_searches, Search, get_user
+from database.database import (
+    db,
+    create_latest_searches,
+    Search,
+    get_user,
+    create_user,
+    confirm_user,
+    login_user,
+)
 import sqlalchemy
+from datetime import timedelta
 
 app = Flask(__name__)  # Create Flask application instance
-app.config["SESSION_PERMANENT"] = False  # Configure session to be non-permanent
-app.config["SESSION_TYPE"] = "filesystem"  # Set session type as filesystem
-Session(app)  # Initialize Flask Session extension with the app instance
+app.config["SECRET_KEY"] = "shopsmart-secret-key"
 
-# Configure the Postgresql database
-app.config["SQLALCHEMY_DATABASE_URI"] = sqlalchemy.engine.url.URL.create(
+DATABASE_URL = sqlalchemy.engine.url.URL.create(
     drivername="postgresql+psycopg2",
     username="postgres",
-    password="shopsmart_db_password",
-    host="shopsmart-db.cp0sou4uaccg.eu-north-1.rds.amazonaws.com",
+    password="shopsmart",
+    host="shopsmart.cp0sou4uaccg.eu-north-1.rds.amazonaws.com",
     port=5432,
     database="postgres",
 )
+
+# Configure the Postgresql database
+app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 # initialize the app with the extension
 db.init_app(app)
+
+app.config["SESSION_PERMANENT"] = True  # Configure session to be non-permanent
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
+app.config["SESSION_TYPE"] = "sqlalchemy"  # Set session type as filesystem
+app.config["SESSION_SQLALCHEMY"] = DATABASE_URL  # Set session type as filesystem
+app.config["SESSION_SQLALCHEMY_TABLE"] = "sessions"  # Set session type as filesystem
+
+# Session(app)  # Initialize Flask Session extension with the app instance
 
 # Create all tables
 with app.app_context():
@@ -160,37 +173,48 @@ def index():
     if request.method == "POST":
         keyword = request.form.get("keyword")  # Get keyword from search form
         if keyword:
-            user_id = session.get("user_id")
-            keyword = request.form.get("keyword")  # Get keyword from search form
+            name, email = get_user(session.get("access_token"))
+            if name == "Expired token":
+                # Login again
+                session["access_token"] = None
+                return redirect("/")
             # User is searching for products
             items = fetch_items(keyword)  # Fetch items based on the keyword
             # Update all current user search to previously_searched before creating new searches
-            Search.query.filter_by(user_id=session.get("user_id")).update(
+            Search.query.filter_by(user_email=email).update(
                 {"previously_searched": True}
             )
 
             # Create new searches
-            create_latest_searches(items, user_id, keyword)
+            create_latest_searches(items, email, keyword)
             return redirect("/results")  # Redirect to results page
         else:
             email = request.form.get("email")
             password = request.form.get("password")
-            user = User.query.filter_by(email=email, password=password).first()
-            if not user:
-                return render_template("search_form.html", error="Invalid email or password")
-            session["user_id"] = user.id
+            resp = login_user(email, password)
+            if resp == "Invalid email or password":
+                return render_template("search_form.html", error=resp)
+            session["access_token"] = resp
+            session.permanent = True
             return redirect("/")  # Redirect to home page after login
-    user_id = session.get("user_id")
+    access_token = session.get("access_token")
     name = None
-    if user_id:
-        user = get_user(user_id)
-        name = user.name
-    return render_template("search_form.html", name=name)  # Render search form template
+    email = None
+    if access_token:
+        name, email = get_user(access_token)
+        if name == "Expired token":
+            # Login again
+            session["access_token"] = None
+            return redirect("/")
+    return render_template(
+        "search_form.html", name=name, email=email
+    )  # Render search form template
+
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
     """
-    Route for the home page.
+    Route for the register page.
 
     Returns:
         render_template: Rendered template for the home page.
@@ -200,16 +224,35 @@ def register():
         name = request.form.get("name")
         email = request.form.get("email")
         password = request.form.get("password")
-        user = User.query.filter_by(email=email).first()
-        if user:
-            return render_template("register.html", error="Email already used")  # Render search form template
-        
-        user = User(name=name, email=email, password=password)
-        db.session.add(user)
-        db.session.commit()
-        # Create new searches
-        return redirect("/")  # Redirect to home page
+        resp = create_user(name, email, password)
+        if resp != "":
+            return render_template(
+                "register.html", error=resp
+            )  # Render register template
+        session["email"] = email
+        return redirect("/verify")  # Redirect to verification page
     return render_template("register.html")  # Render search form template
+
+
+@app.route("/verify", methods=["GET", "POST"])
+def verify():
+    """
+    Route for the verification page.
+
+    Returns:
+        render_template: Rendered template for the home page.
+        redirect: Redirects to other routes based on conditions.
+    """
+    if request.method == "POST":
+        code = request.form.get("code")
+        resp = confirm_user(session.get("email"), code)
+        if resp == "Invalid code":
+            return render_template(
+                "verify.html", error=resp
+            )  # Render register template
+
+        return redirect("/")  # Redirect to home page
+    return render_template("verify.html")  # Render search form template
 
 
 @app.route("/results", methods=["GET"])
@@ -221,20 +264,27 @@ def results():
         render_template: Rendered template for displaying search results.
         redirect: Redirects to home page if user is not logged in.
     """
-    user_id = session.get("user_id")
-    if user_id == None:
+
+    # Authorize user
+    access_token = session.get("access_token")
+    if access_token == None:
         # Only logged in users can see search results. So if you're not logged in, you're redirected home
         return redirect("/")
-    user = get_user(user_id)
+    name, email = get_user(access_token)
+    if name == "Expired token":
+        # Login again
+        session["access_token"] = None
+        return redirect("/")
+
     currently_searched_items = Search.query.filter_by(
-        user_id=user_id, previously_searched=False
+        user_email=email, previously_searched=False
     ).all()
     previously_searched_items = Search.query.filter_by(
-        user_id=user_id, previously_searched=True
+        user_email=email, previously_searched=True
     ).order_by(Search.created_at.desc())[:3]
     return render_template(
         "search_results.html",
-        name=user.name,
+        name=name,
         currently_searched_items=currently_searched_items,
         previously_searched_items=previously_searched_items,
     )  # Render search results template
@@ -249,7 +299,7 @@ def logout():
         redirect: Redirects to home page after logout.
     """
     # Clear user's session data
-    session["user_id"] = None
+    session["access_token"] = None
     return redirect("/")  # Redirect to home page after logout
 
 
