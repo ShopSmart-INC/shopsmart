@@ -186,6 +186,10 @@ def index():
     token = session.get("access_token")
     if token:
         name, email = get_user_via_access_token(token)
+    elif name == None:
+        # Clear user's session data
+        session["name"] = None
+        session["access_token"] = None
     return render_template(
         "search_form.html", name=name, email=email
     )  # Render search form template

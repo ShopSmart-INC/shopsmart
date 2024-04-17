@@ -24,7 +24,7 @@
 <body>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <h1>Welcome to Electronic ShopSmart!</h1>
-    {% if session.access_token %}
+    {% if session.get('access_token') %}
         <h2>Hello, {{ name }}!</h2>
         <h3>Search for gadgets</h3>
         <a href="/logout">Logout</a>
