@@ -4,6 +4,8 @@ from sqlalchemy.orm import DeclarativeBase
 from datetime import datetime
 import boto3, base64
 from decouple import config
+from botocore.exceptions import BotoCoreError, ClientError
+
 
 
 class Base(DeclarativeBase):
@@ -49,12 +51,24 @@ def generate_access_token(code):
 
 
 def get_user_via_access_token(token):
-    client = boto3.client("cognito-idp", region_name="eu-north-1")
-    response = client.get_user(AccessToken=token)
-    data = response["UserAttributes"]
-    email = data[0]["Value"]
-    name = data[2]["Value"]
-    return name, email
+   client = boto3.client("cognito-idp", region_name="eu-north-1")
+
+
+   try:
+       response = client.get_user(AccessToken=token)
+       data = response["UserAttributes"]
+       email = data[0]["Value"]
+       name = data[2]["Value"]
+       return name, email
+   except client.exceptions.ExpiredCodeException:
+       # Handle the expired token case
+       print("The provided token has expired.")
+       return None, None
+   except ClientError as e:
+       # Handle other possible exceptions such as NotAuthorizedException, etc.
+       print(f"An error occurred: {e}")
+       return None, None
+
 
 
 def create_latest_searches(items, user_email, search_filter):
